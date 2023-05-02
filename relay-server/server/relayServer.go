@@ -273,8 +273,8 @@ type LogClient struct {
 	// flag
 	Running bool
 
-	// server
-	server string
+	// Server
+	Server string
 
 	// connection
 	conn *grpc.ClientConn
@@ -283,13 +283,13 @@ type LogClient struct {
 	client pb.LogServiceClient
 
 	// messages
-	msgStream pb.LogService_WatchMessagesClient
+	MsgStream pb.LogService_WatchMessagesClient
 
 	// alerts
-	alertStream pb.LogService_WatchAlertsClient
+	AlertStream pb.LogService_WatchAlertsClient
 
 	// logs
-	logStream pb.LogService_WatchLogsClient
+	LogStream pb.LogService_WatchLogsClient
 
 	// wait group
 	WgServer sync.WaitGroup
@@ -305,9 +305,9 @@ func NewClient(server string) *LogClient {
 
 	// == //
 
-	lc.server = server
+	lc.Server = server
 
-	lc.conn, err = grpc.Dial(lc.server, grpc.WithInsecure())
+	lc.conn, err = grpc.Dial(lc.Server, grpc.WithInsecure())
 	if err != nil {
 		kg.Warnf("Failed to connect to KubeArmor's gRPC service (%s)", server)
 		return nil
@@ -328,7 +328,7 @@ func NewClient(server string) *LogClient {
 	msgIn := pb.RequestMessage{}
 	msgIn.Filter = "all"
 
-	lc.msgStream, err = lc.client.WatchMessages(context.Background(), &msgIn)
+	lc.MsgStream, err = lc.client.WatchMessages(context.Background(), &msgIn)
 	if err != nil {
 		kg.Warnf("Failed to call WatchMessages (%s) err=%s\n", server, err.Error())
 		return nil
@@ -339,7 +339,7 @@ func NewClient(server string) *LogClient {
 	alertIn := pb.RequestMessage{}
 	alertIn.Filter = "policy"
 
-	lc.alertStream, err = lc.client.WatchAlerts(context.Background(), &alertIn)
+	lc.AlertStream, err = lc.client.WatchAlerts(context.Background(), &alertIn)
 	if err != nil {
 		kg.Warnf("Failed to call WatchAlerts (%s) err=%s\n", server, err.Error())
 		return nil
@@ -350,7 +350,7 @@ func NewClient(server string) *LogClient {
 	logIn := pb.RequestMessage{}
 	logIn.Filter = "system"
 
-	lc.logStream, err = lc.client.WatchLogs(context.Background(), &logIn)
+	lc.LogStream, err = lc.client.WatchLogs(context.Background(), &logIn)
 	if err != nil {
 		kg.Warnf("Failed to call WatchLogs (%s)\n err=%s", server, err.Error())
 		return nil
@@ -373,7 +373,7 @@ func (lc *LogClient) DoHealthCheck() bool {
 	nonce := pb.NonceMessage{Nonce: randNum}
 	res, err := lc.client.HealthCheck(context.Background(), &nonce)
 	if err != nil {
-		kg.Warnf("Failed to check the liveness of KubeArmor's gRPC service (%s)", lc.server)
+		kg.Warnf("Failed to check the liveness of KubeArmor's gRPC service (%s)", lc.Server)
 		return false
 	}
 
@@ -395,8 +395,8 @@ func (lc *LogClient) WatchMessages() error {
 	for lc.Running {
 		var res *pb.Message
 
-		if res, err = lc.msgStream.Recv(); err != nil {
-			kg.Warnf("Failed to receive a message (%s)", lc.server)
+		if res, err = lc.MsgStream.Recv(); err != nil {
+			kg.Warnf("Failed to receive a message (%s)", lc.Server)
 			break
 		}
 
@@ -420,7 +420,7 @@ func (lc *LogClient) WatchMessages() error {
 		MsgLock.RUnlock()
 	}
 
-	kg.Print("Stopped watching messages from " + lc.server)
+	kg.Print("Stopped watching messages from " + lc.Server)
 
 	return nil
 }
@@ -435,8 +435,8 @@ func (lc *LogClient) WatchAlerts() error {
 	for lc.Running {
 		var res *pb.Alert
 
-		if res, err = lc.alertStream.Recv(); err != nil {
-			kg.Warnf("Failed to receive an alert (%s)", lc.server)
+		if res, err = lc.AlertStream.Recv(); err != nil {
+			kg.Warnf("Failed to receive an alert (%s)", lc.Server)
 			break
 		}
 
@@ -460,7 +460,7 @@ func (lc *LogClient) WatchAlerts() error {
 		AlertLock.RUnlock()
 	}
 
-	kg.Print("Stopped watching alerts from " + lc.server)
+	kg.Print("Stopped watching alerts from " + lc.Server)
 
 	return nil
 }
@@ -475,8 +475,8 @@ func (lc *LogClient) WatchLogs() error {
 	for lc.Running {
 		var res *pb.Log
 
-		if res, err = lc.logStream.Recv(); err != nil {
-			kg.Warnf("Failed to receive a log (%s)", lc.server)
+		if res, err = lc.LogStream.Recv(); err != nil {
+			kg.Warnf("Failed to receive a log (%s)", lc.Server)
 			break
 		}
 
@@ -499,7 +499,7 @@ func (lc *LogClient) WatchLogs() error {
 		LogLock.RUnlock()
 	}
 
-	kg.Print("Stopped watching logs from " + lc.server)
+	kg.Print("Stopped watching logs from " + lc.Server)
 
 	return nil
 }
@@ -527,7 +527,7 @@ type RelayServer struct {
 	// gRPC listener
 	Listener net.Listener
 
-	// log server
+	// log Server
 	LogServer *grpc.Server
 
 	// wait group
@@ -541,7 +541,7 @@ func NewRelayServer(port string) *RelayServer {
 	rs.Port = port
 
 	// listen to gRPC port
-	listener, err := net.Listen("tcp", ":"+rs.Port)
+	listener, err := net.Listen("tcp", ":"+"32814")
 	if err != nil {
 		kg.Errf("Failed to listen a port (%s)\n", rs.Port)
 		return nil
@@ -557,7 +557,7 @@ func NewRelayServer(port string) *RelayServer {
 		Timeout: 1 * time.Second,
 	}
 
-	// create a log server
+	// create a log Server
 	rs.LogServer = grpc.NewServer(grpc.KeepaliveEnforcementPolicy(kaep), grpc.KeepaliveParams(kasp))
 
 	// register a log service
@@ -639,7 +639,7 @@ func DeleteClientEntry(nodeIP string) {
 func connectToKubeArmor(nodeIP, port string) error {
 
 	// create connection info
-	server := nodeIP + ":" + port
+	server := "localhost:32767"
 
 	defer DeleteClientEntry(nodeIP)
 

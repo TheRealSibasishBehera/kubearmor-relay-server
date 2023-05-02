@@ -5,10 +5,12 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/kubearmor/kubearmor-relay-server/relay-server/elastisearch"
 	kg "github.com/kubearmor/kubearmor-relay-server/relay-server/log"
 	"github.com/kubearmor/kubearmor-relay-server/relay-server/server"
 )
@@ -67,6 +69,17 @@ func main() {
 	// get log feeds (from KubeArmor)
 	go relayServer.GetFeedsFromNodes()
 	kg.Print("Started to receive log feeds from each node")
+
+	//start an elastisearch client
+
+	fmt.Printf("STARTING ELASTISEARCH CLIENT")
+	esCl, err := elastisearch.GetElasticsearchClient()
+	if err != nil {
+		kg.Errf("Failed to start a Elastisearch Client")
+	}
+
+	go esCl.Start()
+	defer esCl.Stop()
 
 	// listen for interrupt signals
 	sigChan := GetOSSigChannel()
