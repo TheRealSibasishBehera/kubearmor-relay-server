@@ -1,4 +1,4 @@
-package elastisearch
+package elasticsearch
 
 import (
 	"bytes"
@@ -146,6 +146,7 @@ func (ecl *ElasticsearchClient) Start() error {
 				case alert := <-ecl.alertCh:
 					ecl.bulkIndex(alert, "alert")
 				case <-ecl.ctx.Done():
+					close(ecl.alertCh)
 					return
 				}
 			}
@@ -163,7 +164,7 @@ func (ecl *ElasticsearchClient) Stop() error {
 
 	//Destoy KubeArmor Relay Client
 	if err := logClient.DestroyClient(); err != nil {
-		return fmt.Errorf("failed to destroy the kubearmor relay gRPC client (%s)\n", err.Error())
+		return fmt.Errorf("failed to destroy the kubearmor relay gRPC client (%s)", err.Error())
 	}
 	kg.Printf("Destroyed kubearmor relay gRPC client")
 
@@ -181,7 +182,7 @@ func (ecl *ElasticsearchClient) Stop() error {
 }
 
 // PrintBulkStats prints data on the bulk indexing process, including the number of indexed documents,
-// the number of errors, and the indexing rate , after elastisearch client stops
+// the number of errors, and the indexing rate , after elasticsearch client stops
 func (ecl *ElasticsearchClient) PrintBulkStats() {
 	biStats := ecl.bulkIndexer.Stats()
 	println(strings.Repeat("▔", 80))
